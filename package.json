@@ -1,12 +1,10 @@
 {
-  "name": "antd-theme-generator",
-  "version": "1.2.8",
+  "name": "umi-theme-generator",
+  "version": "1.0.0",
   "description": "This a script to generate color specific styles less file and which you can use to change theme dynamically in browser",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "lint": "eslint --fix index.js",
-    "deploy": "cd examples/customize-cra && npm run build && gh-pages -d build && cd ../../"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "bundledDependencies": [
     "glob",
@@ -28,6 +26,7 @@
   },
   "keywords": [
     "antd",
+    "umi",
     "theme",
     "less",
     "dynamic-theme",
@@ -39,16 +38,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/mzohaibqc/antd-theme-generator"
+    "url": "git://github.com/alitajs/umi-theme-generator.git"
   },
-  "license": "ISC",
-  "devDependencies": {
-    "eslint": "^7.0.0",
-    "eslint-config-standard": "^14.1.1",
-    "eslint-plugin-import": "^2.20.2",
-    "eslint-plugin-node": "^11.1.0",
-    "eslint-plugin-promise": "^4.2.1",
-    "eslint-plugin-standard": "^4.0.1",
-    "gh-pages": "^2.2.0"
-  }
+  "license": "MIT"
 }
