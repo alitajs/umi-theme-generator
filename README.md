@@ -34,14 +34,14 @@ Add following lines in your main html file
 
 ```
 <link rel="stylesheet/less" type="text/css" href="/color.less" />
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/less.js/2.7.2/less.min.js"></script>
+
 ```
 
 Now you can update colors by updating less variables like this
 
 ```
-import less from 'less';
-
-less.modifyVars({
+window.less.modifyVars({
   '@primary-color': '#0035ff'
 })
 ```

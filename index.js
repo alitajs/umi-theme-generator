@@ -40,11 +40,18 @@ defaultColorRegexArray.matches = (color) => {
 };
 
 /*
-  Recursively get the color code assigned to a variable e.g.
-  @brand-primary: #1890ff;
-  @link-color: @brand-primary;
+  Generated random hex color code
+  e.g. #fe12ee
+*/
+function randomColor() {
+  return "#" + (0x1000000 + Math.random() * 0xffffff).toString(16).substr(1, 6);
+}
 
-  @link-color -> @brand-primary ->  #1890ff
+/*
+  Recursively get the color code assigned to a variable e.g.
+  @primary-color: #1890ff;
+  @link-color: @primary-color;
+  @link-color -> @primary-color ->  #1890ff
   Which means
   @link-color: #1890ff
 */
@@ -62,7 +69,7 @@ function getColor(varName, mappings) {
     - Your own variables.less
   It will generate map like this
   {
-    '@brand-primary': '#00375B',
+    '@primary-color': '#00375B',
     '@info-color': '#1890ff',
     '@success-color': '#52c41a',
     '@error-color': '#f5222d',
@@ -118,7 +125,6 @@ function generateColorMap(content, customColorRegexArray = []) {
     padding: 0;
     pargin: 0
  }
-
  Output:
   .body {
     background: #cccccc;
@@ -215,18 +221,15 @@ function render(text, paths) {
   This funtion reads a less file and create an object with keys as variable names
   and values as variables respective values. e.g.
   //variabables.less
-    @brand-primary : #1890ff;
+    @primary-color : #1890ff;
     @heading-color : #fa8c16;
     @text-color : #cccccc;
-
     to
-
     {
-      '@brand-primary' : '#1890ff',
+      '@primary-color' : '#1890ff',
       '@heading-color' : '#fa8c16',
       '@text-color' : '#cccccc'
     }
-
 */
 function getLessVars(filtPath) {
   const sheet = fs.readFileSync(filtPath).toString();
@@ -242,14 +245,15 @@ function getLessVars(filtPath) {
 }
 
 /*
-  This function take primary color palette name and returns @brand-primary dependent value
+  This function take primary color palette name and returns @primary-color dependent value
   .e.g
   Input: @primary-1
   Output: color(~`colorPalette("@{primary-color}", ' 1 ')`)
 */
 function getShade(varName) {
   let [, className, number] = varName.match(/(.*)-(\d)/);
-  if (/primary-\d/.test(varName)) className = "@brand-primary";
+  if (/primary-\d/.test(varName)) className = "@primary-color";
+  if (/brand-primary-\d/.test(varName)) className = "@brand-primary";
   return (
     'color(~`colorPalette("@{' +
     className.replace("@", "") +
@@ -300,11 +304,13 @@ async function generateTheme({
   antdStylesDir,
   stylesDir,
   varFile,
-  themeVariables = ["@brand-primary"],
+  themeVariables = [],
   customColorRegexArray = [],
-  customCss = []
+  customCss = "",
+  type = 'antd-mobile'
 }) {
   try {
+    const isAntd = type === 'antd';
     const antdPath = antdStylesDir || path.join(antDir, "lib");
     const nodeModulesPath = path.join(
       antDir.slice(0, antDir.indexOf("node_modules")),
@@ -319,11 +325,10 @@ async function generateTheme({
       styles = styles.concat(glob.sync(path.join(s, "./**/*.less")));
     });
 
-    const antdStylesFile = path.join(antDir, "./dist/antd-mobile.less"); // path.join(antdPath, './style/index.less');
+    const antdStylesFile = path.join(antDir, `./dist/${isAntd ? 'antd' : 'antd-mobile'}.less`); // path.join(antdPath, './style/index.less');
 
     /*
       You own custom styles (Change according to your project structure)
-
       - stylesDir - styles directory containing all less files
       - varFile - variable file containing ant design specific and your own custom variables
     */
@@ -340,7 +345,7 @@ async function generateTheme({
     }
     hashCache = hashCode;
     let themeCompiledVars = {};
-    let themeVars = themeVariables || ["@brand-primary"];
+    let themeVars = themeVariables || [];
     const lessPaths = [path.join(antdPath, "./style")].concat(stylesDir);
 
     const randomColors = {};
@@ -348,11 +353,9 @@ async function generateTheme({
     /*
     Ant Design Specific Files (Change according to your project structure)
     You can even use different less based css framework and create color.less for  that
-
     - antDir - ant design instalation path
     - entry - Ant Design less main file / entry file
     - styles - Ant Design less styles for each component
-
     1. Bundle all variables into one file
     2. process vars and create a color name, color value key value map
     3. Get variables which are part of theme
@@ -384,7 +387,7 @@ async function generateTheme({
     themeVars.forEach((varName) => {
       [1, 2, 3, 4, 5, 7, 8, 9, 10].forEach((key) => {
         const name =
-          varName === "@brand-primary"
+          varName === "@primary-color"
             ? `@primary-${key}`
             : `${varName}-${key}`;
         css = `.${name.replace("@", "")} { color: ${getShade(
@@ -398,19 +401,21 @@ async function generateTheme({
     // Put colors.less content first,
     // then add random color variables to override the variables values for given theme variables with random colors
     // Then add css containinf color variable classes
-    // const colorFileContent = combineLess(
-    //   path.join(antdPath, "./style/color/colors.less"),
-    //   nodeModulesPath
-    // );
-    css = `${varsContent}\n${css}`;
+    if (isAntd) {
+      const colorFileContent = combineLess(
+        path.join(antdPath, "./style/color/colors.less"),
+        nodeModulesPath
+      );
+      css = `${colorFileContent}\n${varsContent}\n${css}`;
+    } else {
+      css = `${varsContent}\n${css}`;
+    }
 
     let results = await render(css, lessPaths);
     css = results.css;
     css = css.replace(/(\/.*\/)/g, "");
     const regex = /.(?=\S*['-])([.a-zA-Z0-9'-]+)\ {\n {2}color: (.*);/g;
     themeCompiledVars = getMatches(css, regex);
-
-    // let fadeMap = {};
 
     let varsCombined = "";
     themeVars.forEach((varName) => {
@@ -456,20 +461,23 @@ async function generateTheme({
     });
     // Handle special cases
     // https://github.com/mzohaibqc/antd-theme-webpack-plugin/issues/69
-    // 1. Replace fade(@brand-primary, 20%) value i.e. rgba(18, 52, 86, 0.2)
+    // 1. Replace fade(@primary-color, 20%) value i.e. rgba(18, 52, 86, 0.2)
     css = css.replace(
       new RegExp("rgba\\(18, 52, 86, 0.2\\)", "g"),
-      "fade(@brand-primary, 20%)"
+      "fade(@primary-color, 20%)"
     );
 
     css = css.replace(/@[\w-_]+:\s*.*;[\/.]*/gm, "");
 
     // This is to replace \9 in Ant Design styles
     css = css.replace(/\\9/g, "");
-    // css = `${css.trim()}\n${combineLess(
-    //   path.join(antdPath, "./style/themes/default.less"),
-    //   nodeModulesPath
-    // )}`;
+
+    if (isAntd) {
+      css = `${css.trim()}\n${combineLess(
+        path.join(antdPath, "./style/themes/default.less"),
+        nodeModulesPath
+      )}`;
+    }
 
     themeVars.reverse().forEach((varName) => {
       css = css.replace(new RegExp(`${varName}( *):(.*);`, "g"), "");
@@ -492,6 +500,7 @@ module.exports = {
   generateTheme,
   isValidColor,
   getLessVars,
+  randomColor,
   minifyCss,
   renderLessContent: render,
 };
@@ -504,68 +513,52 @@ function minifyCss(css) {
 
   /*
   Converts from
-
     .abc,
     .def {
       color: red;
       background: blue;
       border: grey;
     }
-
     to
-
     .abc,
     .def {color: red;
       background: blue;
       border: grey;
     }
-
   */
   css = css.replace(/\{(\r\n?|\n)\s+/g, "{");
 
   /*
   Converts from
-
   .abc,
   .def {color: red;
   }
-
   to
-
   .abc,
   .def {color: red;
     background: blue;
     border: grey;}
-
   */
   css = css.replace(/;(\r\n?|\n)\}/g, ";}");
 
   /*
   Converts from
-
   .abc,
   .def {color: red;
     background: blue;
     border: grey;}
-
   to
-
   .abc,
   .def {color: red;background: blue;border: grey;}
-
   */
   css = css.replace(/;(\r\n?|\n)\s+/g, ";");
 
   /*
 Converts from
-
 .abc,
 .def {color: red;background: blue;border: grey;}
-
 to
-
 .abc, .def {color: red;background: blue;border: grey;}
-
 */
   css = css.replace(/,(\r\n?|\n)[.]/g, ", .");
   return css;
